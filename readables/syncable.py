@@ -12,6 +12,7 @@ def synchronized(func: Callable):
         Inspired by Java's "synchronized" keyword.
     """
     func.__syncable_thread_lock__ = ThreadLock()
+
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         with func.__syncable_thread_lock__:

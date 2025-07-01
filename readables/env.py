@@ -2,10 +2,20 @@
 Status: Testing
 """
 import os
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Optional, Any, TypeVar, Type, Callable, Generic
+from typing import Optional, Any, TypeVar, Type, Callable, Generic, Literal, Dict, List, Iterable
 
-__all__ = ['RequiredEnvironmentVariable', 'required_env', 'optional_env', 'required_flag', 'optional_flag', 'flag']
+__all__ = [
+  'RequiredEnvironmentVariable',
+  'required_env',
+  'optional_env',
+  'required_flag',
+  'optional_flag',
+  'flag',
+  'EnvFileExporter',
+  'MarkdownExporter',
+]
 
 T = TypeVar('T')
 ValueConverter = Callable[[Optional[str]], T]
@@ -14,8 +24,8 @@ ValueConverter = Callable[[Optional[str]], T]
 @dataclass
 class EnvironmentVariable(Generic[T]):
     name: str
-    variable_type: str
-    interpretation_type: Type[T]
+    variable_type: Literal["variable", "flag"]
+    interpreted_type: Type[T]
     required: bool
     help: Optional[str]
 
@@ -34,7 +44,12 @@ class EnvironmentVariableManager:
     def __init__(self):
         self._variables: dict[str, EnvironmentVariable] = dict()
 
-    def _parse_value(self, raw_value: Optional[str], kind: Type[T]) -> T:
+    @property
+    def variables(self) -> dict[str, EnvironmentVariable]:
+        return self._variables
+
+    @staticmethod
+    def _parse_value(raw_value: Optional[str], kind: Type[T]) -> T:
         if raw_value is None:
             return None
         return kind(raw_value)
@@ -44,7 +59,7 @@ class EnvironmentVariableManager:
                      kind: Type[T] = str,
                      convert: Optional[ValueConverter] = None,
                      help: Optional[str] = None,
-                     variable_type='variable') -> T:
+                     variable_type: Literal["variable", "flag"] = 'variable') -> T:
         """ Get the required environment variable.
 
             When the environment variable is undefined, this function will raise an exception.
@@ -53,7 +68,7 @@ class EnvironmentVariableManager:
             self._variables[env] = EnvironmentVariable(
                 name=env,
                 variable_type=variable_type,
-                interpretation_type=kind,
+                interpreted_type=kind,
                 required=True,
                 help=help,
             )
@@ -69,7 +84,7 @@ class EnvironmentVariableManager:
                      kind: Type[T] = str,
                      convert: Optional[ValueConverter] = None,
                      help: Optional[str] = None,
-                     variable_type='variable') -> T:
+                     variable_type: Literal["variable", "flag"] = 'variable') -> T:
         """ Get the optional environment variable.
 
             When the environment variable is undefined, this function will return the default value.
@@ -78,8 +93,8 @@ class EnvironmentVariableManager:
             self._variables[env] = EnvironmentVariable(
                 name=env,
                 variable_type=variable_type,
-                interpretation_type=kind,
-                required=True,
+                interpreted_type=kind,
+                required=False,
                 help=help,
             )
 
@@ -115,6 +130,71 @@ class EnvironmentVariableManager:
         return self.optional_env(env, convert=self._parse_bool_value, help=help, variable_type='flag') or False
 
     flag = optional_flag
+
+
+class Exporter(ABC):
+    @classmethod
+    @abstractmethod
+    def export(cls,
+               variables: Iterable[EnvironmentVariable],
+               *,
+               mode: Literal["all", "minimal"] = 'minimal',
+               current_envs: Optional[Dict[str, str]] = None):
+        raise NotImplementedError()
+
+
+class EnvFileExporter(Exporter):
+    @classmethod
+    def export(cls,
+               variables: Iterable[EnvironmentVariable],
+               *,
+               mode: Literal["all", "minimal"] = 'minimal',
+               current_envs: Optional[Dict[str, str]] = None):
+        blocks: List[str] = []
+
+        for env_name, env in manager.variables.items():
+            block: List[str] = [
+                f"# [{'REQUIRED' if env.required else 'OPTIONAL'} {env.variable_type}]",
+                f"# {env_name}",
+                f"#",
+                f"#   Interpreted as {env.interpreted_type.__module__}.{env.interpreted_type.__qualname__})",
+                f"#",
+            ]
+
+            if env.help is not None:
+                block.append(f"#")
+                block.append(f"#   {env.help}")
+                block.append(f"#")
+
+            blocks.append('\n'.join(block))
+
+        return '\n\n'.join(blocks)
+
+
+class MarkdownExporter(Exporter):
+    @classmethod
+    def export(cls,
+               variables: Iterable[EnvironmentVariable],
+               *,
+               mode: Literal["all", "minimal"] = 'minimal',
+               current_envs: Optional[Dict[str, str]] = None):
+        blocks: List[str] = []
+
+        for env_name, env in manager.variables.items():
+            block: List[str] = [
+                f"# {env_name}",
+                f"| Variable Type | Interpreted as | Required? |",
+                f"| ------------- | -------------- | --------- |"
+                f"| {env.variable_type} | {env.interpreted_type.__module__}.{env.interpreted_type.__qualname__} | '**Yes**' if env.required else 'NO'",
+            ]
+
+            if env.help is not None:
+                block.append(f"{env.help}")
+                block.append(f"")
+
+            blocks.append('\n'.join(block))
+
+        return '\n\n'.join(blocks)
 
 
 manager = EnvironmentVariableManager()
