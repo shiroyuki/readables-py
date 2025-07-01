@@ -28,6 +28,7 @@ class EnvironmentVariable(Generic[T]):
     interpreted_type: Type[T]
     required: bool
     help: Optional[str]
+    default: Optional[Any] = None
 
 
 class RequiredEnvironmentVariable(RuntimeError):
@@ -71,6 +72,7 @@ class EnvironmentVariableManager:
                 interpreted_type=kind,
                 required=True,
                 help=help,
+                default=None,
             )
 
         if env not in os.environ:
@@ -96,6 +98,7 @@ class EnvironmentVariableManager:
                 interpreted_type=kind,
                 required=False,
                 help=help,
+                default=default,
             )
 
         read_value = os.getenv(env, default)
@@ -157,14 +160,18 @@ class EnvFileExporter(Exporter):
                 f"# [{'REQUIRED' if env.required else 'OPTIONAL'} {env.variable_type}]",
                 f"# {env_name}",
                 f"#",
-                f"#   Interpreted as {env.interpreted_type.__module__}.{env.interpreted_type.__qualname__})",
+                f"#   Interpreted as {env.interpreted_type.__module__}.{env.interpreted_type.__qualname__}",
                 f"#",
             ]
 
             if env.help is not None:
-                block.append(f"#")
                 block.append(f"#   {env.help}")
                 block.append(f"#")
+
+            if env.required:
+                block.append(f'{env_name}=')
+            else:
+                block.append(f'{env_name}={env.default}')
 
             blocks.append('\n'.join(block))
 
@@ -183,9 +190,9 @@ class MarkdownExporter(Exporter):
         for env_name, env in manager.variables.items():
             block: List[str] = [
                 f"# {env_name}",
-                f"| Variable Type | Interpreted as | Required? |",
-                f"| ------------- | -------------- | --------- |"
-                f"| {env.variable_type} | {env.interpreted_type.__module__}.{env.interpreted_type.__qualname__} | '**Yes**' if env.required else 'NO'",
+                f"| Variable Type | Interpreted as | Required? | Default Value |",
+                f"| ------------- | -------------- | --------- | ------------- |"
+                f"| {env.variable_type} | {env.interpreted_type.__module__}.{env.interpreted_type.__qualname__} | '**Yes**' if env.required else 'NO' | `{env.default}` |",
             ]
 
             if env.help is not None:
