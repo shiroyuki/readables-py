@@ -13,6 +13,7 @@ __all__ = [
   'required_flag',
   'optional_flag',
   'flag',
+  'manager',
   'EnvFileExporter',
   'MarkdownExporter',
 ]
