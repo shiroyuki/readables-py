@@ -169,7 +169,13 @@ class EnvFileExporter(Exporter):
                 block.append(f"#   {env.help}")
                 block.append(f"#")
 
-            block.append(f'{"#" if env.required else ""}{env_name}={env.default if not env.required or env.default is not None else ""}')
+            placeholder = ''
+            if env.variable_type == 'flag':
+                placeholder = '' if env.required else 'false'
+            else:
+                placeholder = '' if env.required else (env.default if env.default else '')
+
+            block.append(f'{"#" if not env.required else ""}{env_name}={placeholder}')
 
             # Add the block to the block list.
             blocks.append('\n'.join(block))
