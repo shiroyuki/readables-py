@@ -2,20 +2,23 @@
 Status: Testing
 """
 import os
+import re
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from textwrap import wrap
 from typing import Optional, Any, TypeVar, Type, Callable, Generic, Literal, Dict, List, Iterable
 
 __all__ = [
-  'RequiredEnvironmentVariable',
-  'required_env',
-  'optional_env',
-  'required_flag',
-  'optional_flag',
-  'flag',
-  'manager',
-  'EnvFileExporter',
-  'MarkdownExporter',
+    'RequiredEnvironmentVariable',
+    'EnvironmentVariableManager',
+    'required_env',
+    'optional_env',
+    'required_flag',
+    'optional_flag',
+    'flag',
+    'manager',
+    'EnvFileExporter',
+    'MarkdownExporter',
 ]
 
 T = TypeVar('T')
@@ -77,7 +80,10 @@ class EnvironmentVariableManager:
             )
 
         if env not in os.environ:
-            raise RequiredEnvironmentVariable(env, help or "Your need to set this environment variable.")
+            if os.getenv('READABLES_ENV_ALLOW_UNSET_REQUIRED') == 'true':
+                return ''
+            else:
+                raise RequiredEnvironmentVariable(env, help or "Your need to set this environment variable.")
 
         return self._parse_value(os.environ[env], convert or kind)
 
@@ -140,45 +146,52 @@ class Exporter(ABC):
     @classmethod
     @abstractmethod
     def export(cls,
-               variables: Iterable[EnvironmentVariable],
+               variables: Dict[str, EnvironmentVariable],
                *,
-               mode: Literal["all", "minimal"] = 'minimal',
-               current_envs: Optional[Dict[str, str]] = None):
+               mode: Literal["all", "minimal"] = 'minimal'):
         raise NotImplementedError()
 
 
 class EnvFileExporter(Exporter):
     @classmethod
     def export(cls,
-               variables: Iterable[EnvironmentVariable],
+               variables: Dict[str, EnvironmentVariable],
                *,
-               mode: Literal["all", "minimal"] = 'minimal',
-               current_envs: Optional[Dict[str, str]] = None):
+               mode: Literal["all", "minimal"] = 'minimal'):
         blocks: List[str] = []
 
-        for env_name, env in manager.variables.items():
-            block: List[str] = [
-                f"# [{'REQUIRED' if env.required else 'OPTIONAL'} {env.variable_type}]",
-                f"# {env_name}",
-                f"#",
-                f"#   Interpreted as {env.interpreted_type.__module__}.{env.interpreted_type.__qualname__}",
-                f"#",
+        for env_name, env in variables.items():
+            lines: List[str] = [
+                f"[{'REQUIRED' if env.required else 'OPTIONAL'} {env.variable_type}]",
+                f"{env_name}",
+                f"",
+                f"> Interpreted as {env.interpreted_type.__module__}.{env.interpreted_type.__qualname__}",
+                f"",
             ]
 
             if env.help is not None:
-                block.append(f"#   {env.help}")
-                block.append(f"#")
+                for help_block in re.split(r'\n', env.help):
+                    if not help_block:
+                        lines.append('')
+                    for new_line in wrap(help_block):
+                        lines.append(new_line)
+                lines.append('')
 
-            placeholder = ''
             if env.variable_type == 'flag':
                 placeholder = '' if env.required else 'false'
             else:
                 placeholder = '' if env.required else (env.default if env.default else '')
 
-            block.append(f'{"#" if not env.required else ""}{env_name}={placeholder}')
+            # Add the prefix to each leading line.
+            lines = [f'# {l}' for l in lines]
 
-            # Add the block to the block list.
-            blocks.append('\n'.join(block))
+            # Add the assignment line.
+            lines.append(
+                f'{"#" if not env.required else ""}{env_name}={placeholder if placeholder is not None else ""}'
+            )
+
+            # Add the lines to the block collection.
+            blocks.append('\n'.join(lines))
 
         # end loop on the variable list.
 
@@ -188,13 +201,12 @@ class EnvFileExporter(Exporter):
 class MarkdownExporter(Exporter):
     @classmethod
     def export(cls,
-               variables: Iterable[EnvironmentVariable],
+               variables: Dict[str, EnvironmentVariable],
                *,
-               mode: Literal["all", "minimal"] = 'minimal',
-               current_envs: Optional[Dict[str, str]] = None):
+               mode: Literal["all", "minimal"] = 'minimal'):
         blocks: List[str] = []
 
-        for env_name, env in manager.variables.items():
+        for env_name, env in variables.items():
             block: List[str] = [
                 f"# {env_name}",
                 f"| Variable Type | Interpreted as | Required? | Default Value |",
