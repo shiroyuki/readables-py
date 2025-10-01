@@ -2,10 +2,14 @@
 
 Enhance code readability and self-documentation in our Python code
 
+---
+
 ### Distributed Lock
 
 > [!NOTE]
 > Check out [the dedicated documentation](readables/dlock/README.md).
+
+---
 
 ### Environment Variable Manager and Exporter
 
