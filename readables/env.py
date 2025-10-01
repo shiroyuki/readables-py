@@ -124,7 +124,7 @@ class EnvironmentVariableManager:
     def required_flag(self, env: str, *, help: Optional[str] = None) -> bool:
         """ Check if the flag is set via environment variable.
 
-            The behaviour of this method is the similar to required_env.
+            The behaviour of this method is similar to required_env.
 
             If the non-boolean value is given, it will raise an exception.
         """
@@ -133,7 +133,7 @@ class EnvironmentVariableManager:
     def optional_flag(self, env: str, *, help: Optional[str] = None) -> bool:
         """ Check if the flag is set via environment variable.
 
-            The behaviour of this method is the similar to required_env.
+            The behaviour of this method is similar to required_env.
 
             If the non-boolean value is given, it will raise an exception.
         """
