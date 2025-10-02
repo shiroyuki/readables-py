@@ -2,6 +2,8 @@
 Test Compatibility Kit for Blocking Distributed Lock
 """
 
+from typing import Optional
+
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from threading import Lock
 from time import sleep, time
@@ -13,7 +15,7 @@ from readables.dlock.blocking.state_manager import DLockStateManager
 def check(dlsm: DLockStateManager,
           number_of_concurrent_tasks: int = 5,
           task_duration: float = 1.0,
-          timeout_duration: Optional[float] = None
+          timeout_duration: Optional[float] = None,
           verbose: bool = False):
     console_lock = Lock()
     timeout_duration = timeout_duration or ((task_duration * number_of_concurrent_tasks) + 1)

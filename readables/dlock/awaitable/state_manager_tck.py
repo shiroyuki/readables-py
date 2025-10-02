@@ -1,6 +1,7 @@
 import asyncio
 from asyncio import Lock, sleep
 from time import time
+from typing import Optional
 
 from readables.dlock.awaitable.core import AwaitableDLockFactory
 from readables.dlock.awaitable.state_manager import AwaitableDLockStateManager
@@ -9,7 +10,7 @@ from readables.dlock.awaitable.state_manager import AwaitableDLockStateManager
 async def check_awaitable(dlsm: AwaitableDLockStateManager,
                           number_of_concurrent_tasks: int = 5,
                           task_duration: float = 1.0,
-                          timeout_duration: Optional[float] = None
+                          timeout_duration: Optional[float] = None,
                           verbose: bool = False):
     timeout_duration = timeout_duration or ((task_duration * number_of_concurrent_tasks) + 1)
     dlf = AwaitableDLockFactory(manager=dlsm)
