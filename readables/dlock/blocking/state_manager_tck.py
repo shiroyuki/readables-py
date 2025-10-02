@@ -13,9 +13,10 @@ from readables.dlock.blocking.state_manager import DLockStateManager
 def check(dlsm: DLockStateManager,
           number_of_concurrent_tasks: int = 5,
           task_duration: float = 1.0,
+          timeout_duration: Optional[float] = None
           verbose: bool = False):
     console_lock = Lock()
-    timeout_duration = (task_duration * number_of_concurrent_tasks) + 1
+    timeout_duration = timeout_duration or ((task_duration * number_of_concurrent_tasks) + 1)
     dlf = DLockFactory(manager=dlsm)
 
     def _worker(idx: int):
